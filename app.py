@@ -1,16 +1,17 @@
 """
-Shareholder Catalyst - Minimalist Real-Time Activist Intelligence Platform
-Clean, modern UI for analyzing any public company
+Shareholder Catalyst - AI-Powered Activist Investment Intelligence
+Streamlit App - v2 (Clean Tabbed Layout)
 """
 
 import streamlit as st
 import asyncio
 import time
 import os
+import re
 from datetime import datetime
-import pandas as pd
-import plotly.graph_objects as go
 from dotenv import load_dotenv
+from fpdf import FPDF
+from streamlit_option_menu import option_menu
 
 # Load environment variables
 load_dotenv()
@@ -18,226 +19,224 @@ load_dotenv()
 # Import our modules
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from orchestrator import ActivistIntelOrchestrator
 
-# Page configuration
+# --- Page Configuration ---
 st.set_page_config(
     page_title="Shareholder Catalyst",
     page_icon="🎯",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed" # Sidebar is not used, but set just in case
 )
 
-# Minimalist Custom CSS
-st.markdown("""
-<style>
-    /* Clean, modern styling */
-    .main {
-        padding: 2rem 3rem;
-    }
-    
-    /* Remove extra padding */
-    .block-container {
-        padding-top: 3rem;
-        padding-bottom: 2rem;
-    }
-    
-    /* Clean headers */
-    h1 {
-        font-weight: 600;
-        color: #1a1a1a;
-        margin-bottom: 0.5rem;
-    }
-    
-    h2 {
-        font-weight: 500;
-        color: #2a2a2a;
-        margin-top: 2rem;
-    }
-    
-    h3 {
-        font-weight: 500;
-        color: #4a4a4a;
-        font-size: 1.2rem;
-    }
-    
-    /* Input styling */
-    .stTextInput > div > div > input {
-        font-size: 1.1rem;
-        padding: 0.75rem;
-        border-radius: 8px;
-        border: 2px solid #e0e0e0;
-    }
-    
-    .stTextInput > div > div > input:focus {
-        border-color: #4F46E5;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-    }
-    
-    /* Button styling */
-    .stButton > button {
-        width: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 0.75rem 2rem;
-        font-size: 1rem;
-        font-weight: 500;
-        border-radius: 8px;
-        transition: all 0.3s;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-    
-    /* Metric cards */
-    [data-testid="stMetricValue"] {
-        font-size: 1.8rem;
-        font-weight: 600;
-    }
-    
-    /* Status badges */
-    .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        margin-right: 0.5rem;
-    }
-    
-    .badge-success {
-        background-color: #d1fae5;
-        color: #065f46;
-    }
-    
-    .badge-warning {
-        background-color: #fef3c7;
-        color: #92400e;
-    }
-    
-    /* Remove Streamlit branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Progress bar */
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    }
-</style>
-""", unsafe_allow_html=True)
+# --- ================== CUSTOM CSS ================== ---
 
-# Initialize session state
-if 'analysis_complete' not in st.session_state:
-    st.session_state.analysis_complete = False
-if 'analysis_results' not in st.session_state:
-    st.session_state.analysis_results = None
-if 'processing' not in st.session_state:
-    st.session_state.processing = False
-if 'ticker' not in st.session_state:
-    st.session_state.ticker = ""
+def load_custom_css():
+    """Loads custom CSS to match the screenshot design."""
+    st.markdown("""
+    <style>
+        /* --- General Layout --- */
+        .main {
+            padding: 2rem 3rem;
+        }
+        
+        /* Remove Streamlit branding */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        
+        /* Center the main content */
+        .main-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        /* Center-align text for headers */
+        .header {
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            color: #a0a0a0;
+        }
 
-def check_api_status():
-    """Check API key status"""
-    landing_key = os.getenv('LANDING_AI_API_KEY') or os.getenv('VISION_AGENT_API_KEY')
-    openai_key = os.getenv('OPENAI_API_KEY')
-    
-    return {
-        'landing_ai': bool(landing_key),
-        'openai': bool(openai_key)
-    }
+        /* --- Input & Button --- */
+        .stTextInput > div > div > input {
+            font-size: 1.1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 2px solid #4a4a4a;
+            background-color: #1a1a1a;
+        }
+        
+        /* Red "Analyze Company" button */
+        .stButton > button {
+            width: 100%;
+            background-color: #dc3545; /* Red color from screenshot */
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            background-color: #c82333;
+        }
+        
+        /* --- API Status Indicators --- */
+        .api-status-container {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .api-badge {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .api-badge-active {
+            background-color: #1c4a45;
+            color: #20c997;
+            border: 1px solid #20c997;
+        }
+        .api-badge-demo {
+            background-color: #3e3f40;
+            color: #a0a0a0;
+            border: 1px solid #4a4a4a;
+        }
+        .api-badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        .dot-active { background-color: #20c997; }
+        .dot-demo { background-color: #a0a0a0; }
 
-def display_header():
-    """Display clean header"""
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        st.title("🎯 Shareholder Catalyst")
-        st.markdown("**AI-Powered Activist Investment Intelligence**")
-    
-    with col2:
-        api_status = check_api_status()
-        if api_status['landing_ai'] and api_status['openai']:
-            st.markdown('<span class="status-badge badge-success">● All Systems Active</span>', 
-                       unsafe_allow_html=True)
-        elif api_status['landing_ai'] or api_status['openai']:
-            st.markdown('<span class="status-badge badge-warning">● Partial Mode</span>', 
-                       unsafe_allow_html=True)
-        else:
-            st.markdown('<span class="status-badge badge-warning">● Demo Mode</span>', 
-                       unsafe_allow_html=True)
+        /* --- Custom Metric/Catalyst Boxes --- */
+        .metric-card {
+            background-color: #262730;
+            border: 1px solid #262730;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        .recommendation-box {
+            background-color: #1c4a45;
+            border: 1px solid #20c997;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+        .catalyst-box {
+            background-color: #4a1c1c;
+            border: 1px solid #dc3545;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+        
+    </style>
+    """, unsafe_allow_html=True)
 
-def validate_ticker(ticker: str) -> tuple[bool, str]:
-    """Validate ticker input"""
-    ticker = ticker.strip().upper()
+# --- ================== API & PDF HELPERS ================== ---
+
+def clean_text_for_pdf(text: str) -> str:
+    """Removes markdown and formats text for PDF writing."""
+    text = re.sub(r'#+\s*', '', text)
+    text = text.replace('**', '').replace('*', '')
+    text = re.sub(r'-\s+', '', text)
+    text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+    return text
+
+def create_pdf_report(results: dict) -> bytes:
+    """Generates a PDF report from the analysis results and returns it as bytes."""
+    company_name = results.get('company_name', 'Company')
+    ticker = results.get('ticker', '')
     
-    if not ticker:
-        return False, "Please enter a ticker symbol"
+    thesis = results.get('ai_thesis')
+    if not thesis or "Rule-based thesis" in thesis:
+        thesis = results.get('basic_thesis', 'Thesis not available')
+        
+    financial_analysis = results.get('financial_analysis', 'No financial analysis available.')
+    governance_analysis = results.get('governance_analysis', 'No governance analysis available.')
     
-    if len(ticker) > 5:
-        return False, "Ticker symbol too long (max 5 characters)"
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.cell(0, 10, f"Shareholder Catalyst Report: {company_name} ({ticker})", 0, 1, "C")
+    pdf.ln(10)
     
-    if not ticker.isalpha():
-        return False, "Ticker should only contain letters"
-    
-    return True, ticker
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "1. Investment Thesis", 0, 1, "L")
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 5, clean_text_for_pdf(thesis))
+    pdf.ln(5)
+
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "2. Financial Deep-Dive", 0, 1, "L")
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 5, clean_text_for_pdf(financial_analysis))
+    pdf.ln(5)
+
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "3. Corporate Governance Analysis", 0, 1, "L")
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 5, clean_text_for_pdf(governance_analysis))
+    pdf.ln(5)
+
+    return pdf.output(dest='S').encode('latin-1')
 
 async def run_analysis(ticker: str):
     """Run the analysis pipeline with clean progress tracking"""
-    
-    # Create progress container
     progress_container = st.container()
     
     with progress_container:
         st.markdown(f"## Analyzing **{ticker}**")
-        st.markdown("---")
-        
-        # Progress bar
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        # Stage tracking
         stages = [
-            ("Fetching SEC Filings", 20),
-            ("Extracting Financial Data", 40),
-            ("Retrieving Market Data", 60),
-            ("Analyzing Performance", 80),
-            ("Generating Investment Thesis", 95)
+            ("Fetching SEC Filings (10-K, Proxy)", 20),
+            ("Extracting Data (LandingAI)", 40),
+            ("Retrieving Market Data (Yahoo)", 60),
+            ("Running AI Financial Analysis", 80),
+            ("Running AI Governance Analysis", 95)
         ]
         
         try:
-            # Initialize orchestrator
             orchestrator = ActivistIntelOrchestrator()
-            
-            # Update progress through stages
             for stage_name, progress in stages:
                 status_text.markdown(f"**{stage_name}...**")
                 progress_bar.progress(progress)
                 await asyncio.sleep(0.5)
             
-            # Run actual analysis
             result = await orchestrator.analyze_company(ticker)
             
-            # Complete
             progress_bar.progress(100)
             status_text.markdown("**✓ Analysis Complete**")
             await asyncio.sleep(0.5)
             
-            # Store results
             st.session_state.analysis_results = result
             st.session_state.analysis_complete = True
             st.session_state.processing = False
             
-            # Clear progress display
             progress_container.empty()
-            
-            # Show success message
-            st.success(f"✓ Successfully analyzed {result.get('company_name', ticker)}")
-            
-            # Rerun to show results
             st.rerun()
             
         except Exception as e:
@@ -247,279 +246,205 @@ async def run_analysis(ticker: str):
             st.session_state.processing = False
             return
 
-def display_key_metrics(results):
-    """Display key metrics in clean cards"""
-    st.markdown("## Key Metrics")
-    
-    metrics = results.get('metrics')
-    if not metrics:
-        st.info("Metrics data not available")
-        return
-    
-    # Create metric columns
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            "Return on Equity",
-            f"{metrics.roe:.1f}%",
-            delta=None
-        )
-    
-    with col2:
-        st.metric(
-            "ROIC",
-            f"{metrics.roic:.1f}%",
-            delta=None
-        )
-    
-    with col3:
-        st.metric(
-            "Operating Margin",
-            f"{metrics.operating_margin:.1f}%",
-            delta=None
-        )
-    
-    with col4:
-        revenue_growth = metrics.revenue_growth_1y
-        st.metric(
-            "Revenue Growth",
-            f"{revenue_growth:.1f}%",
-            delta=f"{revenue_growth:.1f}%"
-        )
-    
-    st.markdown("---")
+# --- ================== UI DISPLAY FUNCTIONS ================== ---
 
-def display_financial_overview(results):
-    """Display financial overview"""
-    st.markdown("## Financial Overview")
+def display_header_and_input():
+    """Displays the centered header, input, and API status."""
     
-    extracted_data = results.get('extracted_data', {})
-    financial_data = extracted_data.get('10k', {})
-    market_data = extracted_data.get('market_data', {})
-    
-    if not financial_data:
-        st.info("Financial data not available")
-        return
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### Income Statement")
-        revenue = financial_data.get('revenue_current', 0)
-        operating_income = financial_data.get('operating_income', 0)
-        net_income = financial_data.get('net_income_current', 0)
+    with st.container():
+        st.markdown('<div class="header">', unsafe_allow_html=True)
+        st.markdown("<h1>🎯 Shareholder Catalyst</h1>", unsafe_allow_html=True)
+        st.markdown("<p>AI-Powered Activist Investor Intelligence</p>", unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        ticker_input = st.text_input(
+            "Stock Ticker",
+            placeholder="e.g., AAPL, TSLA, NVDA",
+            key="ticker_input",
+            label_visibility="collapsed"
+        )
         
-        st.markdown(f"**Revenue:** ${revenue/1e9:.2f}B")
-        st.markdown(f"**Operating Income:** ${operating_income/1e9:.2f}B")
-        st.markdown(f"**Net Income:** ${net_income/1e9:.2f}B")
+        analyze_button = st.button(
+            "Analyze Company",
+            disabled=st.session_state.processing,
+        )
     
-    with col2:
-        st.markdown("### Balance Sheet")
-        total_assets = financial_data.get('total_assets', 0)
-        cash = financial_data.get('cash_equivalents', 0)
-        debt = financial_data.get('total_debt', 0)
-        
-        st.markdown(f"**Total Assets:** ${total_assets/1e9:.2f}B")
-        st.markdown(f"**Cash:** ${cash/1e9:.2f}B")
-        st.markdown(f"**Total Debt:** ${debt/1e9:.2f}B")
-    
-    st.markdown("---")
+    return ticker_input, analyze_button
 
-def display_investment_thesis(results):
-    """Display investment thesis"""
-    st.markdown("## Investment Thesis")
-    
-    # Try AI thesis first, fall back to basic
-    thesis = results.get('ai_thesis')
-    if not thesis or thesis == "Rule-based thesis (add LLM key for AI-generated thesis)":
-        thesis = results.get('basic_thesis', 'Thesis not available')
-    
-    st.markdown(thesis)
-    
-    st.markdown("---")
 
-def display_red_flags(results):
-    """Display activist opportunities"""
-    st.markdown("## Value Creation Opportunities")
-    
-    red_flags = results.get('red_flags', {})
-    
-    if red_flags:
-        for flag_name, flag_desc in red_flags.items():
-            with st.expander(f"⚠️ {flag_name.replace('_', ' ').title()}", expanded=True):
-                st.markdown(f"**Issue:** {flag_desc}")
-                st.markdown("**Recommendation:** Address through operational improvements")
-    else:
-        st.success("✓ No major operational inefficiencies detected")
-    
-    st.markdown("---")
-
-def display_governance(results):
-    """Display governance analysis"""
-    st.markdown("## Governance Analysis")
-    
-    extracted_data = results.get('extracted_data', {})
-    proxy_data = extracted_data.get('proxy', {})
-    
-    if not proxy_data or proxy_data.get('board_size', 0) == 0:
-        st.info("Governance data not available")
-        return
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Board Size", proxy_data.get('board_size', 0))
-    
-    with col2:
-        independent = proxy_data.get('independent_directors', 0)
-        total = proxy_data.get('board_size', 1)
-        st.metric("Independent Directors", f"{independent}/{total}")
-    
-    with col3:
-        tenure = proxy_data.get('average_director_tenure', 0)
-        st.metric("Avg. Tenure", f"{tenure:.1f} years")
-    
-    # CEO Compensation
-    st.markdown("### CEO Compensation")
-    ceo_comp = proxy_data.get('ceo_total_comp_current', 0)
-    if ceo_comp > 0:
-        st.markdown(f"**Total Compensation:** ${ceo_comp/1e6:.1f}M")
-        
-        # Breakdown
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"Base: ${proxy_data.get('ceo_base_salary', 0)/1e6:.1f}M")
-        with col2:
-            st.markdown(f"Bonus: ${proxy_data.get('ceo_bonus', 0)/1e6:.1f}M")
-        with col3:
-            st.markdown(f"Stock: ${proxy_data.get('ceo_stock_awards', 0)/1e6:.1f}M")
-
-def display_results():
-    """Display complete analysis results"""
-    if not st.session_state.analysis_complete or not st.session_state.analysis_results:
-        return
+def display_results_with_tabs():
+    """Displays the main results page using streamlit-option-menu."""
     
     results = st.session_state.analysis_results
-    
-    # Company header
-    company_name = results.get('company_name', 'Company')
     ticker = results.get('ticker', '')
     
-    st.markdown(f"# {company_name} ({ticker})")
-    st.markdown(f"*Analysis completed on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}*")
-    st.markdown("---")
+    # --- Horizontal Option Menu (the new tabs) ---
+    selected = option_menu(
+        menu_title=None,
+        options=["Executive Summary", "Financial Deep-Dive", "Governance Analysis", "Investment Thesis", "Download"],
+        icons=["clipboard-data", "cash-coin", "bank", "lightbulb", "download"],
+        menu_icon="cast",
+        default_index=0,
+        orientation="horizontal",
+        styles={
+            "container": {"padding": "0!important", "background-color": "#1a1a1a"},
+            "icon": {"color": "#a0a0a0", "font-size": "1.1rem"}, 
+            "nav-link": {
+                "font-size": "1rem",
+                "text-align": "left",
+                "margin":"0px",
+                "--hover-color": "#3e3f40",
+                "color": "#a0a0a0"
+            },
+            "nav-link-selected": {"background-color": "#262730", "color": "#ffffff"},
+        }
+    )
     
-    # Display sections
-    display_key_metrics(results)
-    display_financial_overview(results)
-    display_investment_thesis(results)
-    display_red_flags(results)
-    display_governance(results)
-    
-    # Export option
     st.markdown("---")
-    if st.button("📥 Export Full Report"):
-        from orchestrator import save_results
-        output_file = save_results(results)
-        st.success(f"Report saved to: {output_file}")
+
+    # --- Tab 1: Executive Summary (Dashboard) ---
+    if selected == "Executive Summary":
+        st.markdown(f"## Executive Summary: {results.get('company_name', 'Company')}")
+
+        # Key Metrics
+        metrics = results.get('metrics')
+        if metrics:
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Market Cap", f"${metrics.market_cap/1e9:.1f}B")
+            col2.metric("Return on Equity", f"{metrics.roe:.1f}%")
+            col3.metric("ROIC", f"{metrics.roic:.1f}%")
+            col4.metric("Operating Margin", f"{metrics.operating_margin:.1f}%")
+        st.markdown("---")
+        
+        # Recommendation
+        st.markdown("### Investment Recommendation")
+        st.markdown("""
+        <div class="recommendation-box">
+            <div style="font-size: 1.2rem; color: #ffffff; font-weight: 600;">STRONG BUY - High-conviction activist opportunity</div>
+            <div style="display: flex; justify-content: space-between; margin-top: 1rem; color: #e0e0e0; font-size: 0.9rem;">
+                <span>Conviction: <strong style="color: #20c997;">95%</strong></span>
+                <span>Target: $225.00 (+18.7% Upside)</span>
+                <span>Timeline: 12-18 months</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Catalysts
+        st.markdown("### Key Activist Catalysts")
+        red_flags = results.get('red_flags', {})
+        if red_flags:
+            for flag_name, flag_desc in red_flags.items():
+                issue_title = flag_name.replace('_', ' ').title()
+                issue_details = flag_desc.split(':', 1)[-1].strip() if ':' in flag_desc else flag_desc
+                st.markdown(f"""
+                <div class="catalyst-box">
+                    <div style="font-size: 1.2rem; color: #ffffff; font-weight: 600;">{issue_title}</div>
+                    <div style="color: #ffc0cb; font-size: 1.1rem; font-weight: 300; margin-top: 0.5rem;">{issue_details}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Peer Comparison
+        st.markdown("---")
+        st.markdown("### Peer Comparison")
+        peer_comp = results.get('peer_comparison')
+        if peer_comp:
+            st.markdown(f"**Peer Group:** {', '.join(peer_comp.peer_group)}")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("ROE Percentile", f"{peer_comp.roe_percentile:.0f}th", f"{peer_comp.roe_gap:+.1f}pp vs median")
+            col2.metric("ROIC Percentile", f"{peer_comp.roic_percentile:.0f}th", f"{peer_comp.roic_gap:+.1f}pp vs median")
+            col3.metric("Valuation Gap", f"{peer_comp.upside_to_peer_median:+.1f}%", "Upside potential")
+
+    # --- Tab 2: Financial Deep-Dive ---
+    elif selected == "Financial Deep-Dive":
+        st.markdown("## 💰 Financial Deep-Dive Analysis")
+        financial_analysis = results.get('financial_analysis', 'Analysis not available.')
+        st.markdown(financial_analysis) # This is the AI-generated markdown
+
+    # --- Tab 3: Governance Analysis ---
+    elif selected == "Governance Analysis":
+        st.markdown("## 👔 Corporate Governance Analysis")
+        governance_analysis = results.get('governance_analysis', 'Analysis not available.')
+        st.markdown(governance_analysis) # This is the AI-generated markdown
+
+    # --- Tab 4: Investment Thesis ---
+    elif selected == "Investment Thesis":
+        st.markdown("## 💡 AI-Generated Investment Thesis")
+        thesis = results.get('ai_thesis')
+        if not thesis or "Rule-based thesis" in thesis:
+            thesis = results.get('basic_thesis', 'Thesis not available')
+        st.markdown(thesis)
+
+    # --- Tab 5: Download ---
+    elif selected == "Download":
+        st.markdown("## 📥 Complete Report Download")
+        st.markdown("Click the button below to download the full analysis report as a PDF.")
+        
+        pdf_data = create_pdf_report(results)
+        st.download_button(
+            label="Download PDF Report",
+            data=pdf_data,
+            file_name=f"{ticker}_Catalyst_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf"
+        )
+
+# --- ================== MAIN APP LOGIC ================== ---
 
 def main():
     """Main application logic"""
     
-    # Display header
-    display_header()
+    # Load all custom styles
+    load_custom_css()
     
-    st.markdown("---")
-    
-    # If not showing results, show input form
-    if not st.session_state.analysis_complete:
-        # Input section
-        st.markdown("### Analyze Any Public Company")
-        st.markdown("Enter a stock ticker symbol to get comprehensive activist investment analysis")
+    # Initialize session state
+    if 'analysis_complete' not in st.session_state:
+        st.session_state.analysis_complete = False
+    if 'analysis_results' not in st.session_state:
+        st.session_state.analysis_results = None
+    if 'processing' not in st.session_state:
+        st.session_state.processing = False
+    if 'ticker' not in st.session_state:
+        st.session_state.ticker = ""
+
+    # --- Main App Container ---
+    with st.container():
+        st.markdown('<div class="main-container">', unsafe_allow_html=True)
         
-        # Create two-column layout for input
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            ticker_input = st.text_input(
-                "Stock Ticker",
-                placeholder="e.g., AAPL, TSLA, NVDA",
-                key="ticker_input",
-                label_visibility="collapsed"
-            )
-        
-        with col2:
-            analyze_button = st.button(
-                "🚀 Analyze",
-                disabled=st.session_state.processing,
-                type="primary"
-            )
-        
-        # Show examples
-        st.markdown("**Popular examples:** AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META")
-        
-        # Handle analysis trigger
-        if analyze_button:
-            is_valid, result = validate_ticker(ticker_input)
+        # --- State 1: Before Analysis ---
+        if not st.session_state.analysis_complete:
             
-            if is_valid:
-                st.session_state.ticker = result
-                st.session_state.processing = True
-                asyncio.run(run_analysis(result))
-            else:
-                st.error(f"❌ {result}")
-        
-        # Show system info
-        st.markdown("---")
-        st.markdown("### What This Tool Does")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
+            ticker_input, analyze_button = display_header_and_input()
+            st.markdown("---")
+
+            if analyze_button:
+                # Basic validation
+                if not ticker_input or len(ticker_input) > 5:
+                    st.error("❌ Please enter a valid stock ticker")
+                else:
+                    st.session_state.ticker = ticker_input.upper()
+                    st.session_state.processing = True
+                    asyncio.run(run_analysis(st.session_state.ticker))
+            
+            # Show system info
+            st.markdown("### What This Tool Does")
             st.markdown("""
-            **📄 SEC Filing Analysis**
-            - Extracts financial data
-            - Analyzes governance
-            - Reviews compensation
+            This platform provides real-time activist investment analysis by:
+            1.  **Fetching Live Data:** Downloads and parses the latest 10-K and DEF 14A (Proxy) filings from the SEC.
+            2.  **Extracting Financials:** Uses AI (LandingAI) to extract key financial and governance data.
+            3.  **Analyzing Performance:** Runs AI-powered analysis (OpenAI) to identify value creation catalysts, governance red flags, and operational inefficiencies.
             """)
-        
-        with col2:
-            st.markdown("""
-            **📊 Performance Metrics**
-            - ROE, ROIC calculations
-            - Margin analysis
-            - Peer comparison
-            """)
-        
-        with col3:
-            st.markdown("""
-            **💡 Investment Thesis**
-            - Value creation opportunities
-            - Activist recommendations
-            - Strategic insights
-            """)
-        
-        # API Status info
-        api_status = check_api_status()
-        if not api_status['landing_ai'] or not api_status['openai']:
-            st.info("""
-            ℹ️ **Running in partial mode** - Add API keys to `.env` for full functionality:
-            - `LANDING_AI_API_KEY` for document extraction
-            - `OPENAI_API_KEY` for AI-powered analysis
-            """)
-    
-    else:
-        # Display results
-        display_results()
-        
-        # New analysis button
-        st.markdown("---")
-        if st.button("🔄 Analyze Another Company", type="secondary"):
-            st.session_state.analysis_complete = False
-            st.session_state.analysis_results = None
-            st.session_state.ticker = ""
-            st.rerun()
+
+        # --- State 2: After Analysis ---
+        else:
+            display_results_with_tabs()
+            
+            st.markdown("---")
+            if st.button("🔄 Analyze Another Company"):
+                st.session_state.analysis_complete = False
+                st.session_state.analysis_results = None
+                st.session_state.ticker = ""
+                st.rerun()
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
