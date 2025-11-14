@@ -157,18 +157,35 @@ def load_custom_css():
 # --- ================== API & PDF HELPERS ================== ---
 
 def clean_text_for_pdf(text: str) -> str:
-    """Removes markdown and formats text for PDF writing."""
+    """Removes markdown and non-latin-1 chars for PDF writing."""
+    # Remove markdown
     text = re.sub(r'#+\s*', '', text)
     text = text.replace('**', '').replace('*', '')
     text = re.sub(r'-\s+', '', text)
+    
+    # --- NEW FIX ---
+    # Replace common Unicode "smart" characters with latin-1 equivalents
+    text = text.replace('\u2019', "'") # Smart apostrophe
+    text = text.replace('\u201c', '"') # Smart open quote
+    text = text.replace('\u201d', '"') # Smart close quote
+    text = text.replace('\u2013', '-') # En-dash
+    text = text.replace('\u2014', '--') # Em-dash
+    text = text.replace('\u2022', '*') # Bullet
+    # --- END FIX ---
+    
     text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
-    return text
+    
+    # Final fallback: remove any other non-latin-1 chars that we missed
+    return text.encode('latin-1', 'ignore').decode('latin-1')
 
 def create_pdf_report(results: dict) -> bytes:
     """Generates a PDF report from the analysis results and returns it as bytes."""
+    
+    # Get the raw text data
     company_name = results.get('company_name', 'Company')
     ticker = results.get('ticker', '')
     
+    # Get AI thesis, fallback to basic
     thesis = results.get('ai_thesis')
     if not thesis or "Rule-based thesis" in thesis:
         thesis = results.get('basic_thesis', 'Thesis not available')
@@ -176,26 +193,36 @@ def create_pdf_report(results: dict) -> bytes:
     financial_analysis = results.get('financial_analysis', 'No financial analysis available.')
     governance_analysis = results.get('governance_analysis', 'No governance analysis available.')
     
+    # Create PDF
     pdf = FPDF()
     pdf.add_page()
+    
+    # --- Title ---
     pdf.set_font("Helvetica", "B", 20)
-    pdf.cell(0, 10, f"Shareholder Catalyst Report: {company_name} ({ticker})", 0, 1, "C")
+    # --- FIX DEPRECATION WARNING ---
+    pdf.cell(0, 10, f"Shareholder Catalyst Report: {company_name} ({ticker})", new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.ln(10)
     
+    # --- Investment Thesis ---
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "1. Investment Thesis", 0, 1, "L")
+    # --- FIX DEPRECATION WARNING ---
+    pdf.cell(0, 10, "1. Investment Thesis", new_x="LMARGIN", new_y="NEXT", align="L")
     pdf.set_font("Helvetica", "", 11)
-    pdf.multi_cell(0, 5, clean_text_for_pdf(thesis))
+    pdf.multi_cell(0, 5, clean_text_for_pdf(thesis)) # This now uses the fixed cleaner
     pdf.ln(5)
 
+    # --- Financial Analysis ---
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "2. Financial Deep-Dive", 0, 1, "L")
+    # --- FIX DEPRECATION WARNING ---
+    pdf.cell(0, 10, "2. Financial Deep-Dive", new_x="LMARGIN", new_y="NEXT", align="L")
     pdf.set_font("Helvetica", "", 11)
     pdf.multi_cell(0, 5, clean_text_for_pdf(financial_analysis))
     pdf.ln(5)
 
+    # --- Governance Analysis ---
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "3. Corporate Governance Analysis", 0, 1, "L")
+    # --- FIX DEPRECATION WARNING ---
+    pdf.cell(0, 10, "3. Corporate Governance Analysis", new_x="LMARGIN", new_y="NEXT", align="L")
     pdf.set_font("Helvetica", "", 11)
     pdf.multi_cell(0, 5, clean_text_for_pdf(governance_analysis))
     pdf.ln(5)
