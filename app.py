@@ -200,7 +200,8 @@ def create_pdf_report(results: dict) -> bytes:
     pdf.multi_cell(0, 5, clean_text_for_pdf(governance_analysis))
     pdf.ln(5)
 
-    return pdf.output(dest='S').encode('latin-1')
+    # Output as bytes
+    return pdf.output(dest='S')
 
 async def run_analysis(ticker: str):
     """Run the analysis pipeline with clean progress tracking"""
