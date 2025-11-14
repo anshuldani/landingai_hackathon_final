@@ -228,7 +228,7 @@ def create_pdf_report(results: dict) -> bytes:
     pdf.ln(5)
 
     # Output as bytes
-    return pdf.output(dest='S')
+    return bytes(pdf.output())
 
 async def run_analysis(ticker: str):
     """Run the analysis pipeline with clean progress tracking"""
