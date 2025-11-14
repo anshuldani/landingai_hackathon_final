@@ -31,16 +31,17 @@ class RatioCalculator:
         financial_data = extracted_data.get('10k', {})
         market_data = extracted_data.get('market_data', {})
         
-        # Extract base values
-        revenue = financial_data.get('revenue_current', 0)
-        revenue_prior = financial_data.get('revenue_prior_1', 0)
-        net_income = financial_data.get('net_income_current', 0)
-        total_assets = financial_data.get('total_assets', 0)
-        total_debt = financial_data.get('total_debt', 0)
-        cash = financial_data.get('cash_equivalents', 0)
-        equity = financial_data.get('shareholders_equity', 0)
-        operating_income = financial_data.get('operating_income', 0)
-        market_cap = market_data.get('market_cap', 0)
+        # Extract base values (using "or 0" to handle NoneType)
+        revenue = financial_data.get('revenue_current') or 0
+        revenue_prior = financial_data.get('revenue_prior_1') or 0
+        net_income = financial_data.get('net_income_current') or 0
+        total_assets = financial_data.get('total_assets') or 0
+        total_debt = financial_data.get('total_debt') or 0
+        
+        cash = financial_data.get('cash_equivalents') or 0
+        equity = financial_data.get('shareholders_equity') or 0
+        operating_income = financial_data.get('operating_income') or 0
+        market_cap = market_data.get('market_cap') or 0
         
         # Calculate metrics
         enterprise_value = market_cap + (total_debt - cash)
@@ -81,10 +82,16 @@ class RatioCalculator:
         return red_flags
     
     def _safe_divide(self, num: float, denom: float) -> float:
-        return num / denom if denom != 0 else 0
+        if denom is None or denom == 0:
+            return 0
+        if num is None:
+            return 0
+        return num / denom
     
     def _calculate_growth(self, current: float, prior: float) -> float:
-        if prior == 0:
+        if prior is None or prior == 0:
+            return 0
+        if current is None:
             return 0
         return ((current - prior) / prior) * 100
 
