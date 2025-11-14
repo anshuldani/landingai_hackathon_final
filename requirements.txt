@@ -1,0 +1,47 @@
+# Shareholder Catalyst - Python Dependencies
+
+# Core APIs
+requests>=2.31.0
+openai>=1.0.0
+
+# LandingAI SDK (Official from hackathon)
+landingai-ade
+pydantic>=2.0.0
+pydantic-settings
+
+# HTML to Markdown conversion (for LandingAI compatibility)
+# Note: weasyprint is optional - we now use html2text for direct markdown conversion
+# weasyprint
+
+# Market Data
+yfinance>=0.2.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Web Interface
+streamlit>=1.28.0
+plotly>=5.17.0
+streamlit-option-menu>=0.3.6
+
+# PDF Generation
+reportlab>=4.0.0
+fpdf2>=2.7.0
+
+# HTML Processing
+beautifulsoup4>=4.12.0
+html2text>=2020.1.16
+lxml>=4.9.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Async Support
+aiohttp>=3.9.0
+
+# File Processing
+chardet>=5.2.0
+
+# Date handling
+python-dateutil>=2.8.2
